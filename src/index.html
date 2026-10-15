@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>THE GHOST - ステルス退勤支援システム</title>
+      <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="time-display" id="timeDisplay">18:28</div>
+            <h1><span class="ghost-icon">👻</span>THE GHOST</h1>
+            <p>ステルス退勤支援システム - あなたの定時脱出を全力でサポート</p>
+        </div>
+
+        <div class="main-content">
+            <!-- モジュール1: 擬似多忙画面偽装機能 -->
+            <div class="module">
+                <h2><span class="module-icon">🖥️</span> 擬似多忙画面偽装</h2>
+                <div class="button-group">
+                    <button class="btn-primary btn-sm" onclick="showHackerScreen()">ハッカー画面</button>
+                    <button class="btn-primary btn-sm" onclick="showExcelScreen()">極彩色Excel</button>
+                    <button class="btn-primary btn-sm" onclick="showErrorScreen()">エラー画面</button>
+                </div>
+                <div class="display-area" id="displayArea">
+                    <div style="text-align: center; color: #999; padding: 130px 20px;">
+                        画面を選択してください
+                    </div>
+                </div>
+                <div class="panic-detector">
+                    💡 パニックモード：マウスを急速に動かすと自動切り替え（開発中）
+                </div>
+            </div>
+
+            <!-- モジュール2: 退路策定アルゴリズム -->
+            <div class="module">
+                <h2><span class="module-icon">🚪</span> 退路策定ナビゲーター</h2>
+                <button class="btn-info" onclick="generateEscapeRoute()" style="width: 100%; margin-bottom: 10px;">最適ルート算出</button>
+                <div id="chanceAlert" class="chance-alert" style="display: none;">
+                    ⏰ チャンスタイム突入！<br>
+                    残り猶予: <span class="chance-timer" id="chanceTimer">3:00</span>
+                </div>
+                <div id="statusBars">
+                    <div class="status-bar">
+                        <span><span class="status-indicator status-phone"></span>上司A（田中課長）</span>
+                        <span id="status-a">電話中</span>
+                    </div>
+                    <div class="status-bar">
+                        <span><span class="status-indicator status-chat"></span>上司B（佐藤マネージャー）</span>
+                        <span id="status-b">雑談中</span>
+                    </div>
+                    <div class="status-bar">
+                        <span><span class="status-indicator status-toilet"></span>上司C（鈴木部長）</span>
+                        <span id="status-c">トイレ離席（機会！）</span>
+                    </div>
+                </div>
+                <div id="escapeRoutes" style="margin-top: 15px;"></div>
+            </div>
+
+            <!-- モジュール3: 言い訳ジェネレーター -->
+            <div class="module">
+                <h2><span class="module-icon">💬</span> 言い訳ジェネレーター</h2>
+                <div class="select-group">
+                    <label style="font-weight: 600; display: block; margin-bottom: 8px;">緊急度を選択：</label>
+                    <select id="emergencyLevel">
+                        <option value="1">Lv.1 - 軽度（同僚程度）</option>
+                        <option value="2">Lv.2 - 中度（係長程度）</option>
+                        <option value="3">Lv.3 - 高度（課長程度）</option>
+                        <option value="4">Lv.4 - 最高度（部長程度）</option>
+                        <option value="5">Lv.5 - 論破不能（役員相手）</option>
+                    </select>
+                </div>
+                <button class="btn-warning" onclick="generateExcuse()" style="width: 100%; margin-bottom: 15px;">言い訳を生成</button>
+                <div id="excuseOutput" class="output-text" style="display: none;"></div>
+                <button class="btn-info btn-sm" onclick="copyToClipboard()" style="display: none;" id="copyBtn">📋 コピーする</button>
+            </div>
+
+            <!-- モジュール4: 物理デコイ支援機能 -->
+            <div class="module">
+                <h2><span class="module-icon">🧥</span> 物理デコイ確認チェック</h2>
+                <p style="font-size: 0.9em; color: #666; margin-bottom: 15px;">退勤前に以下をすべてチェックしてください：</p>
+                <ul class="checklist">
+                    <li>
+                        <input type="checkbox" id="check1" onchange="updateDecoyButton()">
+                        <label for="check1">☑️ 置きジャケット（ユニクロ感動ジャケット）を椅子に掛けた</label>
+                    </li>
+                    <li>
+                        <input type="checkbox" id="check2" onchange="updateDecoyButton()">
+                        <label for="check2">☑️ デスクに温かい缶コーヒーを配置した</label>
+                    </li>
+                    <li>
+                        <input type="checkbox" id="check3" onchange="updateDecoyButton()">
+                        <label for="check3">☑️ PCの画面ロック解除のまま作業中を装う</label>
+                    </li>
+                </ul>
+                <button class="btn-success" id="decoyBtn" onclick="decoyComplete()" style="width: 100%; margin-top: 15px;" disabled>
+                    ✓ デコイ展開完了
+                </button>
+            </div>
+
+            <!-- モジュール5: アリバイ偽装Slack自動送信 -->
+            <div class="module">
+                <h2><span class="module-icon">💬</span> アリバイ偽装 自動投稿</h2>
+                <p style="font-size: 0.9em; color: #666; margin-bottom: 15px;">脱出から30分後に自動投稿されるメッセージ：</p>
+                <div class="output-text" id="slackPreview">電車の電波が悪く返信遅れます。急ぎの案件は明朝対応します！</div>
+                <button class="btn-info" onclick="scheduleSlackMessage()" style="width: 100%; margin-bottom: 10px;">🔔 投稿をスケジュール</button>
+                <div id="slackMessage" class="message-box">
+                    ✓ メッセージがスケジュール済みです！退社から30分後に自動投稿されます
+                </div>
+            </div>
+
+            <!-- モジュール6: 最終確認ボタン -->
+            <div class="module full-width">
+                <h2><span class="module-icon">⏰</span> 脱出実行</h2>
+                <p style="font-size: 0.95em; color: #666; margin-bottom: 15px;">
+                    すべての準備が完了したら、以下のボタンで脱出を実行してください。
+                </p>
+                <button class="escape-btn" onclick="executeEscape()" style="width: 100%; padding: 20px;">
+                    🚀 今すぐ脱出する（定時退勤）
+                </button>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>⚠️ 本システムはパロディです。実際の勤務規則に違反する行為はご遠慮ください。</p>
+            <p>THE GHOST v1.0 - © 2024 定時退社絶対防衛戦線</p>
+        </div>
+    </div>
+
+    <!-- 確認モーダル -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <h2>最終確認</h2>
+            <p style="font-size: 1em; color: #666; line-height: 1.8;">
+                本当に脱出しますか？<br><br>
+                ✓ デコイの配置は完了しましたか？<br>
+                ✓ 上司の監視範囲から外れていますか？<br>
+                ✓ 気持ちの準備はできていますか？<br>
+            </p>
+            <div class="modal-buttons">
+                <button class="btn-secondary" onclick="closeModal()">キャンセル</button>
+                <button class="escape-btn" onclick="finalEscape()">脱出実行！</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 成功モーダル -->
+    <div id="successModal" class="modal">
+        <div class="modal-content">
+            <h2 style="text-align: center; color: #27ae60; font-size: 1.8em;">🎉 脱出成功！</h2>
+            <p style="font-size: 1em; color: #666; line-height: 1.8; margin-top: 20px; text-align: center;">
+                おめでとうございます！<br><br>
+                あなたは無事に定時で退社しました！<br>
+                明日も頑張りましょう... 😌<br><br>
+                <span style="color: #e74c3c; font-weight: bold;">※ブラウザを閉じるとすべてのログが消去されます</span>
+            </p>
+            <div class="modal-buttons">
+                <button class="btn-primary" onclick="location.reload()" style="width: 100%; margin-top: 20px;">もう一度使用する</button>
+            </div>
+        </div>
+    </div>
+
+      <script src="js/app.js"></script>
+</body>
+</html>
