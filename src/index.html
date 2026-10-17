@@ -3,149 +3,138 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stealth Work Suite - Phase 3 Acoustic Sonar</title>
+    <title>THE GHOST Phase 4 - Phantom Call Engine 🍋</title>
       <link rel="stylesheet" href="css/style.css">
 
       <script src="js/app.js"></script>
 </head>
 <body>
-    <div class="safety-hint">
-        🔒 Press ESC×2 to exit • All audio local only
-    </div>
+    <div class="container">
+        <h1>👻 Phantom Call Engine</h1>
+        <p class="subtitle">緊急コール偽装プロトコル - THE GHOST Phase 4</p>
 
-    <div class="sonar-hud defcon-4">
-        <div class="sonar-content">
-            <div class="sonar-defcon">DEFCON 4</div>
-            <div class="sonar-status">SAFE</div>
-            <div class="sonar-level">--- dB</div>
-        </div>
-    </div>
-
-    <div class="main-container">
-        <div class="header">
-            <h1>Stealth Work Suite <span class="phase-badge">Phase 3: Acoustic Sonar</span></h1>
-            <p>Autonomous audio-triggered workplace camouflage system</p>
-        </div>
-
-        <div class="info-box">
-            <strong>🎧 Acoustic Stealth Sonar:</strong> 
-            Automatically detects sudden office sounds (footsteps, voice spikes) and activates bluff screen within 50ms. 
-            Zero-hand operation for ultimate stealth. <br/>
-            <strong>All audio analysis happens locally in your browser – no recordings, no uploads, no traces.</strong>
-        </div>
-
-        <!-- Audio Control Section -->
-        <div class="control-section">
-            <h2>🎙️ Audio Detection Controls</h2>
-            
-            <div class="control-group">
-                <label class="control-label">Microphone Status</label>
-                <div class="status-panel">
-                    <div class="status-row">
-                        <span class="status-label">Microphone Access:</span>
-                        <span class="status-value"><span class="status-indicator indicator-inactive"></span><span id="micStatus">Inactive</span></span>
-                    </div>
-                    <div class="status-row">
-                        <span class="status-label">Calibration:</span>
-                        <span class="status-value"><span class="status-indicator indicator-inactive"></span><span id="calibrationStatus">Pending</span></span>
-                    </div>
-                    <div class="status-row">
-                        <span class="status-label">Base Noise Level:</span>
-                        <span class="status-value" id="baselineValue">--</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="control-group">
-                <div class="control-buttons">
-                    <button class="btn-primary" id="startAudioBtn">
-                        🎙️ Start Acoustic Monitoring
-                    </button>
-                    <button class="btn-secondary" id="stopAudioBtn" disabled>
-                        ⏹️ Stop Monitoring
-                    </button>
-                </div>
-            </div>
-
-            <div class="control-group">
-                <label class="control-label">Detection Sensitivity</label>
-                <div class="slider-group">
-                    <input type="range" id="sensitivitySlider" min="0.5" max="2" step="0.25" value="1" />
-                    <span class="slider-value"><span id="sensitivityValue">100%</span></span>
-                </div>
-                <p style="font-size: 12px; color: #999; margin-top: 5px;">Adjust responsiveness: Lower = fewer false alerts, Higher = faster detection</p>
-            </div>
-
-            <div class="control-group">
-                <label class="control-label">Enhanced Audio Camouflage</label>
-                <div class="toggle-container">
-                    <div class="toggle" id="sfxToggle"></div>
-                    <span style="color: #666; font-size: 14px;">Enable typing SFX on detection</span>
-                </div>
-                <p style="font-size: 12px; color: #999; margin-top: 5px;">Plays subtle keyboard sounds when panic is triggered for extra authenticity</p>
-            </div>
-        </div>
-
-        <!-- Bluff Screen Configuration -->
-        <div class="control-section">
-            <h2>🎭 Bluff Screen Configuration</h2>
-            
-            <div class="control-group">
-                <label class="control-label">Select Bluff Screen Style</label>
-                <select id="bluffMode" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
-                    <option value="excel">📊 Serious Excel Spreadsheet</option>
-                    <option value="hacker">💻 Hacker Terminal</option>
-                    <option value="error">🔴 System Critical Error</option>
-                </select>
-            </div>
-
-            <div class="control-group">
-                <div class="control-buttons">
-                    <button class="btn-danger" id="manualPanicBtn">
-                        🚨 Manual Panic (Ctrl+Alt+P)
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Emergency Exit -->
-        <div class="control-section" style="background: #ffe9e9; border-left-color: #ff6b6b;">
-            <h2>🆘 Emergency Controls</h2>
-            
-            <div class="control-group">
-                <p style="color: #c92a2a; font-size: 14px; margin-bottom: 15px;">
-                    <strong>If currently in Bluff Screen:</strong><br/>
-                    Press <code style="background: #fff0f0; padding: 2px 6px; border-radius: 3px;">ESC</code> twice to exit immediately
-                </p>
-                <button class="btn-danger" id="exitBtn">
-                    ❌ Exit Bluff Screen Now
+        <!-- プリセット選択 -->
+        <div class="section">
+            <div class="section-title">📱 着信プリセット</div>
+            <div class="preset-grid">
+                <button class="preset-btn active" data-preset="teams">
+                    💼 Teams
+                </button>
+                <button class="preset-btn" data-preset="slack">
+                    💬 Slack
+                </button>
+                <button class="preset-btn" data-preset="legacy">
+                    ☎️ Legacy
+                </button>
+                <button class="preset-btn" data-preset="alert">
+                    🚨 Alert
                 </button>
             </div>
         </div>
 
-        <!-- System Metrics -->
-        <div class="control-section">
-            <h2>📊 System Metrics</h2>
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <div class="metric-label">Successful Detections</div>
-                    <div class="metric-value" id="metricsSuccessful">0</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">False Triggers</div>
-                    <div class="metric-value" id="metricsFalse">0</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Calibration Status</div>
-                    <div class="metric-value" style="font-size: 14px;" id="metricsCalib">Pending</div>
+        <!-- 発信元設定 -->
+        <div class="section">
+            <div class="section-title">🎭 発信元カスタマイズ</div>
+            <label class="label">発信元名</label>
+            <input type="text" id="callerNameInput" class="input-field" 
+                   placeholder="例: AWS CloudWatch Alert">
+        </div>
+
+        <!-- 遅延タイマー -->
+        <div class="section">
+            <div class="section-title">⏰ 着信タイミング</div>
+            <label class="label">遅延秒数</label>
+            <input type="range" id="delaySlider" min="0" max="600" step="5" value="0">
+            <div class="slider-value"><span id="delayValue">即時</span></div>
+        </div>
+
+        <!-- 音量・マナーモード -->
+        <div class="section">
+            <div class="section-title">🔊 音響設定</div>
+            <label class="label">音量レベル</label>
+            <input type="range" id="volumeSlider" min="0" max="1" step="0.1" value="0.7">
+            
+            <div style="margin-top: 16px;">
+                <label class="label">マナーモード（バイブ・画面点滅のみ）</label>
+                <div class="toggle-group">
+                    <div class="toggle" id="muteToggle">
+                        <div class="toggle-knob"></div>
+                    </div>
+                    <span style="font-size: 12px; color: #666;">OFF</span>
                 </div>
             </div>
         </div>
 
-        <!-- Footer -->
-        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e9ecef; text-align: center; font-size: 12px; color: #999;">
-            <p>Stealth Work Suite | Phase 3: Acoustic Stealth Sonar</p>
-            <p>🔐 <strong>Privacy First:</strong> 100% browser-based audio analysis. Zero server communication. Your audio never leaves your device.</p>
+        <!-- トリガーボタン -->
+        <div class="section">
+            <div class="section-title">🚀 着信発火</div>
+            <div class="trigger-buttons">
+                <button class="btn btn-primary" id="triggerNowBtn">
+                    即座に着信
+                </button>
+                <button class="btn btn-primary" id="triggerScheduleBtn">
+                    スケジュール着信
+                </button>
+            </div>
+            <div class="hotkey-hint">
+                💡 ホットキー: Ctrl + Shift + X で即座着信
+            </div>
+        </div>
+
+        <!-- QRコード生成 -->
+        <div class="section">
+            <div class="section-title">📲 モバイルリモート</div>
+            <button class="btn btn-secondary" id="generateQrBtn" style="width: 100%;">
+                QRコード生成 (スマホ連携)
+            </button>
+            <div id="qrDisplay" class="qr-display">
+                <div class="qr-label">スマートフォンで読み込んでください</div>
+            </div>
+        </div>
+
+        <!-- 情報 -->
+        <div class="info-box">
+            ⚠️ <strong>緊急中止:</strong> 着信・通話中に ESC キーを 2 回押すと中止できます。
+        </div>
+    </div>
+
+    <!-- 着信オーバーレイ -->
+    <div id="incomingCallOverlay" class="incoming-call-overlay">
+        <div class="incoming-call-card teams">
+            <div class="pulse-icon">💼</div>
+            <div class="caller-name">System Monitoring</div>
+            <div class="caller-detail">Incoming call</div>
+            <div class="call-actions">
+                <button class="call-btn accept" id="acceptBtn">
+                    ✓
+                </button>
+                <button class="call-btn reject" id="rejectBtn">
+                    ✕
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 通話画面オーバーレイ -->
+    <div id="callScreenOverlay" class="call-screen-overlay">
+        <div class="call-header">
+            <div class="call-timer" id="callTimer">00:00</div>
+            <div class="call-status">通話中...</div>
+        </div>
+
+        <div class="prompter-area">
+            <div class="prompter-text" id="prompterText">
+                待機中…
+            </div>
+        </div>
+
+        <div class="call-footer">
+            <button class="call-btn-mute" id="muteCallBtn" title="ミュート">
+                🔇
+            </button>
+            <button class="call-btn-end" id="endCallBtn" title="終了">
+                📞
+            </button>
         </div>
     </div>
 </body>
