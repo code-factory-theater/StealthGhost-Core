@@ -1,512 +1,675 @@
-// ===================================================================
-        // Mission Sequencer - フェーズ2 実装
-        // ===================================================================
+// ============================================================================
+        // STEALTH WORK SUITE - PHASE 3: ACOUSTIC STEALTH SONAR
+        // Web Audio API Integration for Auto-Panic Triggering
+        // ============================================================================
 
-        // グローバル状態
-        const missionState = {
-            targetTime: null,
-            currentPhase: 'STANDBY',
-            missionActive: false,
-            ghostModeActive: false,
-            escKeyPressCount: 0,
-            escKeyResetTimer: null,
-            mouseVelocity: { x: 0, y: 0 },
-            lastMousePos: { x: 0, y: 0 }
-        };
-
-        // Phase定義
-        const PHASES = {
-            STANDBY: { name: 'STANDBY', offset: 0, description: 'ミッション待機中' },
-            RECON: { name: 'RECON', offset: -30, description: '周囲警戒・ルート確認' },
-            DECOY: { name: 'DECOY', offset: -15, description: '物理デコイチェック' },
-            CAMOUFLAGE: { name: 'CAMOUFLAGE', offset: -5, description: 'ブラフ画面準備' },
-            EGRESS: { name: 'EGRESS', offset: 0, description: '脱出待機中' },
-            POST_OPS: { name: 'POST_OPS', offset: 30, description: 'アリバイ偽装実行' }
-        };
-
-        // イベントシステム
-        class MissionEventBus {
+        class AcousticStealth {
             constructor() {
-                this.listeners = {};
+                this.audioContext = null;
+                this.analyser = null;
+                this.microphone = null;
+                this.isListening = false;
+                this.baselineNoise = null;
+                this.calibrationTime = 3000; // 3 seconds
+                this.isCalibrated = false;
+                this.sensitivity = 1.0; // 1.0 = standard
+                this.defconLevel = 4; // 4=safe, 1=emergency
+                this.lastPanicTime = 0;
+                this.panicLockoutTime = 15000; // 15 seconds minimum
+                this.enableTypingSFX = false;
+                this.lastSpikeTime = 0;
+                this.spikeDebounce = 300; // 300ms debounce
+                this.dataArray = new Uint8Array(256);
+                this.frequencyData = new Uint8Array(256);
+                this.sonarCanvas = null;
+                this.sonarCtx = null;
+                this.metrics = {
+                    falseTriggers: 0,
+                    successfulDetections: 0,
+                    averageResponseTime: 0,
+                    calibrationStatus: 'pending'
+                };
             }
 
-            on(eventName, callback) {
-                if (!this.listeners[eventName]) {
-                    this.listeners[eventName] = [];
-                }
-                this.listeners[eventName].push(callback);
-            }
-
-            emit(eventName, data = {}) {
-                if (this.listeners[eventName]) {
-                    this.listeners[eventName].forEach(callback => callback(data));
-                }
-            }
-
-            off(eventName, callback) {
-                if (this.listeners[eventName]) {
-                    this.listeners[eventName] = this.listeners[eventName].filter(cb => cb !== callback);
-                }
-            }
-        }
-
-        const eventBus = new MissionEventBus();
-
-        // ===================================================================
-        // Timeline管理
-        // ===================================================================
-        function updateTimeline() {
-            if (!missionState.targetTime) return;
-
-            const now = new Date();
-            const [targetHour, targetMin] = missionState.targetTime.split(':');
-            const targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), targetHour, targetMin, 0);
-
-            // 既に過ぎていたら翌日に
-            if (targetDate < now) {
-                targetDate.setDate(targetDate.getDate() + 1);
-            }
-
-            const diffMinutes = Math.round((targetDate - now) / 60000);
-
-            // Phase判定
-            let currentPhase = 'STANDBY';
-            if (diffMinutes <= -1) {
-                currentPhase = 'POST_OPS';
-            } else if (diffMinutes <= 0) {
-                currentPhase = 'EGRESS';
-            } else if (diffMinutes <= 5) {
-                currentPhase = 'CAMOUFLAGE';
-            } else if (diffMinutes <= 15) {
-                currentPhase = 'DECOY';
-            } else if (diffMinutes <= 30) {
-                currentPhase = 'RECON';
-            }
-
-            // Phase変更時イベント
-            if (currentPhase !== missionState.currentPhase) {
-                missionState.currentPhase = currentPhase;
-                eventBus.emit('MissionStageChange', { phase: currentPhase });
-            }
-
-            // HUD更新
-            updateHUDCountdown(diffMinutes, currentPhase);
-            updateTimelineUI();
-
-            // ブラウザ通知（Phase遷移時）
-            if (currentPhase === 'DECOY' && missionState.missionActive && 'Notification' in window) {
-                new Notification('🎭 DECOY Phase開始', {
-                    body: '物理デコイチェックを開始してください',
-                    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🎭</text></svg>'
-                });
-            }
-        }
-
-        function updateHUDCountdown(minutes, phase) {
-            const hudCountdown = document.getElementById('hud-countdown');
-            const hudPhase = document.getElementById('hud-phase');
-
-            if (hudCountdown) {
-                if (minutes < 0) {
-                    hudCountdown.textContent = `T+${Math.abs(minutes).toString().padStart(2, '0')}m`;
-                    hudCountdown.style.color = '#ff0000';
-                } else if (minutes === 0) {
-                    hudCountdown.textContent = 'T-0m NOW';
-                    hudCountdown.style.color = '#ffff00';
-                    hudCountdown.style.animation = 'pulse-active 0.5s infinite';
-                } else {
-                    hudCountdown.textContent = `T-${minutes.toString().padStart(2, '0')}m`;
-                    hudCountdown.style.color = '#00ff00';
-                    hudCountdown.style.animation = 'none';
+            async initialize() {
+                try {
+                    if (this.audioContext) return;
+                    
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    this.analyser = this.audioContext.createAnalyser();
+                    this.analyser.fftSize = 512;
+                    
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        audio: { 
+                            echoCancellation: true,
+                            noiseSuppression: false,
+                            autoGainControl: false 
+                        } 
+                    });
+                    
+                    this.microphone = this.audioContext.createMediaStreamSource(stream);
+                    this.microphone.connect(this.analyser);
+                    
+                    this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+                    this.frequencyData = new Uint8Array(this.analyser.frequencyBinCount);
+                    
+                    this.updateUI('micStatus', 'active');
+                    this.startListening();
+                    
+                    return { success: true, message: 'Microphone initialized' };
+                } catch (error) {
+                    console.error('Microphone initialization failed:', error);
+                    this.updateUI('micStatus', 'error');
+                    this.fallbackToMouseMode();
+                    return { success: false, message: error.message };
                 }
             }
 
-            if (hudPhase) {
-                hudPhase.textContent = phase;
+            startListening() {
+                if (this.isListening) return;
+                this.isListening = true;
+                this.metrics.calibrationStatus = 'calibrating';
+                this.updateUI('calibrationStatus', 'Calibrating...');
+                
+                // Calibrate for 3 seconds
+                this.calibrate();
             }
-        }
 
-        function updateTimelineUI() {
-            const items = document.querySelectorAll('.timeline-item');
-            items.forEach(item => {
-                const phase = item.dataset.phase;
-                item.classList.remove('active', 'completed');
-
-                if (phase === missionState.currentPhase) {
-                    item.classList.add('active');
-                } else {
-                    // 過ぎたPhaseはcompletedに
-                    const phaseOrder = ['RECON', 'DECOY', 'CAMOUFLAGE', 'EGRESS', 'POST_OPS'];
-                    const currentIdx = phaseOrder.indexOf(missionState.currentPhase);
-                    const itemIdx = phaseOrder.indexOf(phase);
-                    if (itemIdx < currentIdx) {
-                        item.classList.add('completed');
-                    }
-                }
-            });
-        }
-
-        // ===================================================================
-        // Excuse Generator
-        // ===================================================================
-        function generateExcuse() {
-            const excuses = [
-                '申し訳ございません。緊急でデータベースの最適化を行っていました。',
-                'システムエラーが発生したため、ログファイルの確認に時間がかかりました。',
-                '本社からの重要な報告書作成が入り、優先対応していました。',
-                'セキュリティ監査の準備で、全ファイルのバックアップを実施していました。',
-                'クライアント対応のため、緊急会議に出席していました。',
-                'パッチ更新のテストで、複数の環境検証が必要でした。',
-                'チームメンバーのオンボーディング資料を急遽作成していました。',
-                'システム監視で異常値を検出し、原因調査を行っていました。'
-            ];
-            return excuses[Math.floor(Math.random() * excuses.length)];
-        }
-
-        // ===================================================================
-        // Slack Alibi Message
-        // ===================================================================
-        function generateSlackMessage() {
-            const messages = [
-                '今、DB最適化のテスト実行中です。結果待ちです... 🔄',
-                '新機能のコードレビュー中です。複数の観点から確認しています 📝',
-                'ドキュメント整備をしています。重要な手順の可視化を進めています 📚',
-                'パフォーマンス分析ツール走らせてます。データを集計中です ⚡',
-                'セキュリティログ確認中です。何か異常がないか監視しています 🔐',
-                'チーム間の情報共有ドキュメント更新しています 📊',
-                'テスト環境の構築中です。複数パターン検証予定です 🧪'
-            ];
-            return messages[Math.floor(Math.random() * messages.length)];
-        }
-
-        // ===================================================================
-        // ワンアクション脱出トリガー
-        // ===================================================================
-        function triggerEscape() {
-            if (missionState.ghostModeActive) return;
-
-            missionState.ghostModeActive = true;
-            missionState.currentPhase = 'POST_OPS';
-
-            eventBus.emit('MissionTriggered', {});
-
-            // Ghost Mode表示
-            showGhostMode();
-
-            // Bluff Screen表示
-            showBluffScreen();
-
-            // Slack偽装メッセージ予約
-            scheduleSlackMessage();
-
-            // ローカルストレージに記録
-            localStorage.setItem('ghostModeActive', 'true');
-            localStorage.setItem('ghostModeTimestamp', new Date().toISOString());
-        }
-
-        function showGhostMode() {
-            let ghostIndicator = document.getElementById('ghost-mode-indicator');
-            if (!ghostIndicator) {
-                ghostIndicator = document.createElement('div');
-                ghostIndicator.id = 'ghost-mode-indicator';
-                ghostIndicator.className = 'ghost-mode-active';
-                ghostIndicator.textContent = '👻 GHOST MODE ACTIVE';
-                document.body.appendChild(ghostIndicator);
-            }
-        }
-
-        function showBluffScreen() {
-            const bluffScreen = document.createElement('div');
-            bluffScreen.className = 'bluff-screen';
-            bluffScreen.innerHTML = `
-                <div class="bluff-error-icon">⚠️</div>
-                <div class="bluff-error-text">CRITICAL SYSTEM ERROR</div>
-                <div class="bluff-error-details">
-                    エラーコード: E_CRITICAL_FAILURE<br>
-                    原因: 予期しないシステムエラーが発生しました<br>
-                    復旧中...
-                </div>
-                <div class="bluff-progress">
-                    <div class="bluff-progress-bar"></div>
-                </div>
-            `;
-            document.body.appendChild(bluffScreen);
-        }
-
-        function scheduleSlackMessage() {
-            const message = generateSlackMessage();
-            const timestamp = new Date().toISOString();
-
-            // ローカルストレージに保存
-            const slackQueue = JSON.parse(localStorage.getItem('slackQueue') || '[]');
-            slackQueue.push({
-                message,
-                scheduledTime: new Date(Date.now() + 30 * 60000).toISOString(),
-                sent: false
-            });
-            localStorage.setItem('slackQueue', JSON.stringify(slackQueue));
-
-            console.log('📨 Slack予約送信: ', message);
-        }
-
-        // ===================================================================
-        // Checklist管理
-        // ===================================================================
-        function setupChecklistToggle() {
-            document.querySelectorAll('.checklist-item input[type="checkbox"]').forEach(checkbox => {
-                checkbox.addEventListener('change', function() {
-                    const item = this.closest('.checklist-item');
-                    if (this.checked) {
-                        item.classList.add('checked');
+            calibrate() {
+                let calibrationSamples = [];
+                let sampleCount = 0;
+                const samplesNeeded = 30; // Collect 30 samples over 3 seconds
+                
+                const collectSample = () => {
+                    if (sampleCount < samplesNeeded) {
+                        this.analyser.getByteFrequencyData(this.frequencyData);
+                        const average = this.frequencyData.reduce((a, b) => a + b) / this.frequencyData.length;
+                        calibrationSamples.push(average);
+                        sampleCount++;
+                        setTimeout(collectSample, 100);
                     } else {
-                        item.classList.remove('checked');
+                        // Calculate baseline
+                        this.baselineNoise = calibrationSamples.reduce((a, b) => a + b) / calibrationSamples.length;
+                        this.isCalibrated = true;
+                        this.metrics.calibrationStatus = 'complete';
+                        this.updateUI('calibrationStatus', `Calibrated: ${this.baselineNoise.toFixed(1)}dB`);
+                        this.continuousMonitoring();
                     }
-                });
-            });
-        }
+                };
+                
+                collectSample();
+            }
 
-        // ===================================================================
-        // Keyboard shortcuts
-        // ===================================================================
-        document.addEventListener('keydown', (e) => {
-            // Escape key 3連打検出（Abort Switch）
-            if (e.key === 'Escape') {
-                missionState.escKeyPressCount++;
+            continuousMonitoring() {
+                const monitor = () => {
+                    if (!this.isListening) return;
+                    
+                    this.analyser.getByteFrequencyData(this.frequencyData);
+                    this.analyser.getByteTimeDomainData(this.dataArray);
+                    
+                    const currentLevel = this.frequencyData.reduce((a, b) => a + b) / this.frequencyData.length;
+                    const rms = this.calculateRMS(this.dataArray);
+                    
+                    this.updateDefconLevel(currentLevel, rms);
+                    this.checkForSpike(currentLevel, rms);
+                    this.renderSonarHUD(currentLevel);
+                    
+                    requestAnimationFrame(monitor);
+                };
+                
+                monitor();
+            }
 
-                if (missionState.escKeyResetTimer) {
-                    clearTimeout(missionState.escKeyResetTimer);
+            calculateRMS(data) {
+                let sum = 0;
+                for (let i = 0; i < data.length; i++) {
+                    const normalized = (data[i] - 128) / 128;
+                    sum += normalized * normalized;
                 }
+                return Math.sqrt(sum / data.length);
+            }
 
-                if (missionState.escKeyPressCount === 3) {
-                    triggerAbort();
-                    missionState.escKeyPressCount = 0;
+            checkForSpike(currentLevel, rms) {
+                if (!this.isCalibrated) return;
+                
+                const now = Date.now();
+                const threshold = this.baselineNoise + (18 * this.sensitivity);
+                const rmsThreshold = 0.15 * this.sensitivity;
+                
+                const hasSpike = (currentLevel > threshold) || (rms > rmsThreshold);
+                
+                if (hasSpike && (now - this.lastSpikeTime) > this.spikeDebounce) {
+                    const timeSinceLastPanic = now - this.lastPanicTime;
+                    
+                    if (timeSinceLastPanic > this.panicLockoutTime) {
+                        this.triggerEmergencyPanic();
+                        this.lastSpikeTime = now;
+                        this.metrics.successfulDetections++;
+                    }
+                }
+            }
+
+            updateDefconLevel(currentLevel, rms) {
+                if (!this.isCalibrated) {
+                    this.defconLevel = 4;
+                    return;
+                }
+                
+                const delta = currentLevel - this.baselineNoise;
+                
+                if (delta < 2) {
+                    this.defconLevel = 4; // Green - Safe
+                } else if (delta < 6) {
+                    this.defconLevel = 3; // Yellow - Caution
+                } else if (delta < 12) {
+                    this.defconLevel = 2; // Orange - Warning
                 } else {
-                    missionState.escKeyResetTimer = setTimeout(() => {
-                        missionState.escKeyPressCount = 0;
-                    }, 1000);
+                    this.defconLevel = 1; // Red - Emergency
+                }
+                
+                this.updateSonarHUD();
+            }
+
+            renderSonarHUD(level) {
+                if (!this.sonarCanvas) return;
+                
+                const size = 200;
+                this.sonarCanvas.width = size;
+                this.sonarCanvas.height = size;
+                
+                const ctx = this.sonarCtx;
+                const centerX = size / 2;
+                const centerY = size / 2;
+                
+                // Clear
+                ctx.fillStyle = 'rgba(20, 30, 60, 0.2)';
+                ctx.fillRect(0, 0, size, size);
+                
+                // Draw concentric circles
+                ctx.strokeStyle = 'rgba(0, 255, 0, 0.2)';
+                ctx.lineWidth = 1;
+                for (let i = 1; i <= 4; i++) {
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, (size / 2) * (i / 4), 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                
+                // Draw cross
+                ctx.strokeStyle = 'rgba(0, 255, 0, 0.15)';
+                ctx.beginPath();
+                ctx.moveTo(centerX, 0);
+                ctx.lineTo(centerX, size);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, centerY);
+                ctx.lineTo(size, centerY);
+                ctx.stroke();
+                
+                // Draw audio wave as radar blip
+                const normalized = Math.min(level / 100, 1);
+                const radius = (size / 2) * 0.8 * normalized;
+                const angle = (Date.now() % 3000) / 3000 * Math.PI * 2;
+                
+                const x = centerX + Math.cos(angle) * radius;
+                const y = centerY + Math.sin(angle) * radius;
+                
+                ctx.fillStyle = this.getDefconColor();
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw ping radius
+                ctx.strokeStyle = this.getDefconColor();
+                ctx.globalAlpha = 0.3;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.globalAlpha = 1.0;
+            }
+
+            getDefconColor() {
+                switch(this.defconLevel) {
+                    case 4: return '#00ff00';
+                    case 3: return '#ffff00';
+                    case 2: return '#ff8800';
+                    case 1: return '#ff0000';
+                    default: return '#00ff00';
                 }
             }
 
-            // Ctrl+Shift+G: 脱出トリガー
-            if (e.ctrlKey && e.shiftKey && e.key === 'G') {
-                e.preventDefault();
-                triggerEscape();
-            }
-        });
-
-        // ===================================================================
-        // Mouse shake detection
-        // ===================================================================
-        let mouseShakeVelocity = 0;
-        let lastMouseShakeTime = 0;
-
-        document.addEventListener('mousemove', (e) => {
-            const now = Date.now();
-            const dx = e.clientX - missionState.lastMousePos.x;
-            const dy = e.clientY - missionState.lastMousePos.y;
-
-            mouseShakeVelocity = Math.sqrt(dx * dx + dy * dy) * 1000 / (now - lastMouseShakeTime || 16);
-
-            if (mouseShakeVelocity > 1000) {
-                // 高速シェイク検知→脱出トリガー前のカウント
-                console.log('🐭 Mouse shake detected:', mouseShakeVelocity);
+            updateSonarHUD() {
+                const widget = document.querySelector('.sonar-hud');
+                if (!widget) return;
+                
+                // Update class
+                widget.className = `sonar-hud defcon-${this.defconLevel}`;
+                
+                // Update content
+                const statusText = ['CRITICAL', 'WARNING', 'CAUTION', 'SAFE'][4 - this.defconLevel];
+                const color = this.getDefconColor();
+                
+                const content = widget.querySelector('.sonar-content');
+                if (content) {
+                    content.innerHTML = `
+                        <div class="sonar-defcon" style="color: ${color};">DEFCON ${this.defconLevel}</div>
+                        <div class="sonar-status">${statusText}</div>
+                        <div class="sonar-level">${this.baselineNoise ? (this.baselineNoise + 3).toFixed(0) + ' dB' : '---'}</div>
+                    `;
+                }
             }
 
-            missionState.lastMousePos = { x: e.clientX, y: e.clientY };
-            lastMouseShakeTime = now;
-        });
-
-        // ===================================================================
-        // Abort Switch処理
-        // ===================================================================
-        function triggerAbort() {
-            const modal = document.getElementById('abort-modal');
-            if (modal) {
-                modal.classList.add('show');
+            triggerEmergencyPanic() {
+                console.log('🚨 SPIKE DETECTED - TRIGGERING EMERGENCY PANIC');
+                this.lastPanicTime = Date.now();
+                
+                if (this.enableTypingSFX) {
+                    this.playTypingSFX();
+                }
+                
+                // Dispatch custom event for integration with existing panic system
+                window.dispatchEvent(new CustomEvent('stealth:emergency-panic', {
+                    detail: { source: 'acoustic-sonar', timestamp: Date.now() }
+                }));
+                
+                // Update metrics
+                this.metrics.successfulDetections++;
             }
-            alert('⚠️ ABORT SEQUENCE TRIGGERED\n\n上司が迫ってきた場合、このジェネレーターを使用してください。');
 
-            // 言い訳表示
-            const excuseOutput = document.getElementById('excuse-output');
-            if (excuseOutput) {
-                excuseOutput.textContent = generateExcuse();
+            playTypingSFX() {
+                // Generate simple typing sound using Web Audio API
+                try {
+                    const audioCtx = this.audioContext;
+                    const now = audioCtx.currentTime;
+                    
+                    // Create a quick "tap" sound
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    
+                    osc.frequency.setValueAtTime(800, now);
+                    osc.frequency.exponentialRampToValueAtTime(300, now + 0.05);
+                    
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                    
+                    osc.start(now);
+                    osc.stop(now + 0.05);
+                } catch (e) {
+                    // Silent fail
+                }
+            }
+
+            setSensitivity(value) {
+                this.sensitivity = parseFloat(value);
+                this.updateUI('sensitivityValue', `${(this.sensitivity * 100).toFixed(0)}%`);
+            }
+
+            setSFX(enabled) {
+                this.enableTypingSFX = enabled;
+            }
+
+            stopListening() {
+                this.isListening = false;
+                if (this.microphone) {
+                    this.microphone.disconnect();
+                }
+            }
+
+            updateUI(element, value) {
+                const el = document.getElementById(element);
+                if (el) el.textContent = value;
+            }
+
+            fallbackToMouseMode() {
+                console.warn('Falling back to mouse-based panic mode');
+                document.getElementById('panicMode').value = 'mouse';
+            }
+
+            getMetrics() {
+                return this.metrics;
             }
         }
 
-        // ===================================================================
-        // Mission タイムライン作成
-        // ===================================================================
-        function createTimeline() {
-            const timelineContainer = document.getElementById('timeline-container');
-            if (!timelineContainer) return;
+        // ============================================================================
+        // BLUFF SCREEN SYSTEM - Existing Phase 2 Integration
+        // ============================================================================
 
-            timelineContainer.innerHTML = '';
+        class BluffScreen {
+            constructor() {
+                this.currentMode = 'excel';
+                this.isActive = false;
+                this.activationTime = null;
+            }
 
-            const timeline = [
-                { phase: 'RECON', time: 'T-30m', desc: '周囲警戒・脱出ルート確認' },
-                { phase: 'DECOY', time: 'T-15m', desc: '物理デコイ(飲料/ジャケット)の配置' },
-                { phase: 'CAMOUFLAGE', time: 'T-5m', desc: 'ブラフ画面スタンバイ' },
-                { phase: 'EGRESS', time: 'T-0m', desc: '脱出トリガー待機' },
-                { phase: 'POST_OPS', time: 'T+30m', desc: 'Slack偽装アリバイ送信' }
-            ];
+            activate(mode = null) {
+                if (mode) this.currentMode = mode;
+                this.isActive = true;
+                this.activationTime = Date.now();
+                
+                document.body.classList.add('bluff-active');
+                this.renderBluffScreen();
+                console.log(`🎭 Bluff Screen Activated: ${this.currentMode}`);
+            }
 
-            timeline.forEach(item => {
-                const timelineItem = document.createElement('div');
-                timelineItem.className = 'timeline-item';
-                timelineItem.dataset.phase = item.phase;
-                timelineItem.innerHTML = `
-                    <div class="timeline-time">${item.time}</div>
-                    <div class="timeline-phase">
-                        <div class="timeline-phase-name">${item.phase}</div>
-                        <div class="timeline-phase-desc">${item.desc}</div>
-                    </div>
-                    <div class="timeline-indicator"></div>
+            deactivate() {
+                this.isActive = false;
+                document.body.classList.remove('bluff-active');
+                console.log('✅ Bluff Screen Deactivated');
+            }
+
+            renderBluffScreen() {
+                let html = '';
+                
+                switch(this.currentMode) {
+                    case 'excel':
+                        html = this.generateExcelHtml();
+                        break;
+                    case 'hacker':
+                        html = this.generateHackerHtml();
+                        break;
+                    case 'error':
+                        html = this.generateErrorHtml();
+                        break;
+                }
+                
+                // Store in a data attribute or create fullscreen overlay
+                const existing = document.getElementById('bluff-overlay');
+                if (existing) existing.remove();
+                
+                const overlay = document.createElement('div');
+                overlay.id = 'bluff-overlay';
+                overlay.innerHTML = html;
+                overlay.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: white;
+                    z-index: 8000;
+                    overflow: auto;
                 `;
-                timelineContainer.appendChild(timelineItem);
-            });
-        }
-
-        // ===================================================================
-        // UI初期化
-        // ===================================================================
-        function initializeUI() {
-            createTimeline();
-            setupChecklistToggle();
-
-            // Target Time入力
-            const targetTimeInput = document.getElementById('target-time');
-            if (targetTimeInput) {
-                targetTimeInput.addEventListener('change', (e) => {
-                    missionState.targetTime = e.target.value;
-                    if (missionState.targetTime) {
-                        missionState.missionActive = true;
-                        console.log('🎯 Mission activated. Target:', missionState.targetTime);
-                        eventBus.emit('MissionStarted', { targetTime: missionState.targetTime });
-                    }
-                });
+                
+                document.body.appendChild(overlay);
             }
 
-            // GO GHOST ボタン
-            const goGhostBtn = document.getElementById('go-ghost-btn');
-            if (goGhostBtn) {
-                goGhostBtn.addEventListener('click', triggerEscape);
+            generateExcelHtml() {
+                return `
+                    <div style="font-family: Calibri, sans-serif; padding: 20px; background: #f2f2f2; min-height: 100vh;">
+                        <div style="background: white; margin: 10px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                            <h2 style="color: #333; margin-bottom: 10px;">Q4 Financial Analysis Spreadsheet</h2>
+                            <table style="width: 100%; border-collapse: collapse; background: white;">
+                                <thead>
+                                    <tr style="background: #4472c4; color: white;">
+                                        <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Department</th>
+                                        <th style="padding: 10px; text-align: right; border: 1px solid #ddd;">Revenue</th>
+                                        <th style="padding: 10px; text-align: right; border: 1px solid #ddd;">Expenses</th>
+                                        <th style="padding: 10px; text-align: right; border: 1px solid #ddd;">Margin %</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${Array.from({length: 10}, (_, i) => `
+                                        <tr style="background: ${i % 2 ? '#f0f0f0' : 'white'};">
+                                            <td style="padding: 8px; border: 1px solid #ddd;">Department ${i+1}</td>
+                                            <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">$${(Math.random()*1000000).toFixed(0)}</td>
+                                            <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">$${(Math.random()*500000).toFixed(0)}</td>
+                                            <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${(Math.random()*50).toFixed(1)}%</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
             }
 
-            // Generate Excuse
-            const genExcuseBtn = document.getElementById('gen-excuse-btn');
-            if (genExcuseBtn) {
-                genExcuseBtn.addEventListener('click', () => {
-                    const excuseOutput = document.getElementById('excuse-output');
-                    if (excuseOutput) {
-                        excuseOutput.textContent = generateExcuse();
-                    }
-                });
+            generateHackerHtml() {
+                return `
+                    <div style="background: #0a0e27; color: #00ff00; font-family: 'Courier New', monospace; min-height: 100vh; padding: 20px; overflow: auto; text-shadow: 0 0 10px rgba(0,255,0,0.3);">
+                        <div style="font-size: 12px; line-height: 1.8;">
+                            <div>$ analyzing_database_integrity.sh</div>
+                            <div style="margin: 20px 0;">Analyzing database integrity...</div>
+                            ${Array.from({length: 15}, () => `<div>├─ PASS: Sector ${Math.floor(Math.random()*9999)} verified</div>`).join('')}
+                            <div style="margin: 10px 0; color: #ffff00;">⚠ WARNING: Anomaly detected in sector 7742</div>
+                            <div>$ investigating_anomaly.sh</div>
+                            <div style="margin: 10px 0; animation: pulse 1s infinite;">█ Scanning...</div>
+                        </div>
+                    </div>
+                `;
             }
 
-            // Generate Slack Message
-            const genSlackBtn = document.getElementById('gen-slack-btn');
-            if (genSlackBtn) {
-                genSlackBtn.addEventListener('click', () => {
-                    const slackPreview = document.getElementById('slack-preview');
-                    if (slackPreview) {
-                        slackPreview.textContent = generateSlackMessage();
-                    }
-                });
+            generateErrorHtml() {
+                return `
+                    <div style="background: #f0f0f0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;">
+                        <div style="background: white; border: 3px solid #ff0000; border-radius: 8px; padding: 40px; text-align: center; max-width: 500px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+                            <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+                            <h1 style="color: #d32f2f; margin: 10px 0;">CRITICAL SYSTEM ERROR</h1>
+                            <p style="color: #666; margin: 20px 0; font-size: 14px; line-height: 1.6;">
+                                A critical system error has been detected. The system will attempt to recover.<br/>
+                                <strong>Error Code: 0x80004005</strong><br/>
+                                Technical details logged for administrator review.
+                            </p>
+                            <div style="background: #f5f5f5; border: 1px solid #ddd; padding: 15px; margin: 20px 0; border-radius: 4px; text-align: left; font-family: 'Courier New', monospace; font-size: 11px; color: #333;">
+                                KERNEL_MODE_EXCEPTION_NOT_HANDLED<br/>
+                                0x0000007E: SYSTEM_THREAD_EXCEPTION_NOT_HANDLED<br/>
+                                Address fffff8000123abcd base at fffff800001abcd00<br/>
+                            </div>
+                            <button style="padding: 10px 30px; background: #d32f2f; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">Retry</button>
+                        </div>
+                    </div>
+                `;
             }
 
-            // Theme Toggle
-            const themeToggle = document.getElementById('theme-toggle');
-            if (themeToggle) {
-                themeToggle.addEventListener('click', () => {
-                    document.body.classList.toggle('stealth-mode');
-                    const isStealthMode = document.body.classList.contains('stealth-mode');
-                    localStorage.setItem('stealthMode', isStealthMode);
-                    themeToggle.textContent = isStealthMode ? '🟠 STEALTH MODE OFF' : '🟢 STEALTH MODE ON';
-                });
-
-                // 初期状態読み込み
-                const savedStealthMode = localStorage.getItem('stealthMode') === 'true';
-                if (savedStealthMode) {
-                    document.body.classList.add('stealth-mode');
-                    themeToggle.textContent = '🟠 STEALTH MODE OFF';
-                }
-            }
-
-            // Modal close
-            document.querySelectorAll('.modal-close').forEach(closeBtn => {
-                closeBtn.addEventListener('click', (e) => {
-                    e.target.closest('.modal').classList.remove('show');
-                });
-            });
-
-            // Notification権限要求
-            if ('Notification' in window && Notification.permission === 'default') {
-                Notification.requestPermission();
+            isDisplayed() {
+                return this.isActive && document.getElementById('bluff-overlay') !== null;
             }
         }
 
-        // ===================================================================
-        // Main Loop
-        // ===================================================================
-        setInterval(() => {
-            if (missionState.missionActive) {
-                updateTimeline();
+        // ============================================================================
+        // PANIC SYSTEM - Mouse-based trigger (Phase 2 legacy)
+        // ============================================================================
+
+        class PanicSystem {
+            constructor(bluffScreen) {
+                this.bluffScreen = bluffScreen;
+                this.mouseSensitivity = 8;
+                this.lastMouseX = 0;
+                this.lastMouseY = 0;
+                this.velocityThreshold = 15;
+                this.panicActive = false;
+                this.panicLockout = 5000;
+                this.lastPanicTime = 0;
             }
-        }, 1000);
 
-        // ===================================================================
-        // 初期化実行
-        // ===================================================================
-        document.addEventListener('DOMContentLoaded', () => {
-            initializeUI();
-
-            // Slack予約送信チェック
-            setInterval(() => {
-                checkSlackQueue();
-            }, 5000);
-        });
-
-        function checkSlackQueue() {
-            const slackQueue = JSON.parse(localStorage.getItem('slackQueue') || '[]');
-            const now = new Date();
-
-            slackQueue.forEach((item, index) => {
-                if (!item.sent && new Date(item.scheduledTime) <= now) {
-                    console.log('📨 Slack Message Sent:', item.message);
-                    item.sent = true;
-                    // 実際のSlack送信処理はここで実行（WebhookなどAPI呼び出し）
-                }
-            });
-
-            localStorage.setItem('slackQueue', JSON.stringify(slackQueue));
-        }
-
-// ===================================================================
-        // ユーティリティ関数
-        // ===================================================================
-        function copyToClipboard(selector) {
-            const element = document.querySelector(selector);
-            if (element) {
-                const text = element.textContent;
-                navigator.clipboard.writeText(text).then(() => {
-                    alert('✓ Copied to clipboard!');
-                });
-            }
-        }
-
-        // Abort Modalが表示されたとき自動的に言い訳を生成
-        const abortModal = document.getElementById('abort-modal');
-        const abortObserver = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                if (mutation.attributeName === 'class') {
-                    if (abortModal.classList.contains('show')) {
-                        const abortExcuse = document.getElementById('abort-excuse');
-                        if (abortExcuse && abortExcuse.textContent === '[言い訳を生成してください]') {
-                            abortExcuse.textContent = generateExcuse();
+            initMouseTracking() {
+                document.addEventListener('mousemove', (e) => {
+                    const dx = e.clientX - this.lastMouseX;
+                    const dy = e.clientY - this.lastMouseY;
+                    const velocity = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (velocity > this.velocityThreshold && !this.bluffScreen.isDisplayed()) {
+                        const now = Date.now();
+                        if (now - this.lastPanicTime > this.panicLockout) {
+                            this.trigger();
+                            this.lastPanicTime = now;
                         }
                     }
+                    
+                    this.lastMouseX = e.clientX;
+                    this.lastMouseY = e.clientY;
+                });
+
+                // Keyboard shortcut: Ctrl+Alt+P
+                document.addEventListener('keydown', (e) => {
+                    if (e.ctrlKey && e.altKey && e.code === 'KeyP') {
+                        this.trigger();
+                    }
+                    
+                    // Double Esc to exit
+                    if (e.code === 'Escape') {
+                        if (this.bluffScreen.isDisplayed()) {
+                            this.deactivate();
+                        }
+                    }
+                });
+            }
+
+            trigger() {
+                console.log('🎯 PANIC TRIGGERED');
+                this.bluffScreen.activate();
+                this.panicActive = true;
+            }
+
+            deactivate() {
+                this.bluffScreen.deactivate();
+                this.panicActive = false;
+            }
+        }
+
+        // ============================================================================
+        // GLOBAL INITIALIZATION
+        // ============================================================================
+
+        let sonar = null;
+        let bluffScreen = null;
+        let panicSystem = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize systems
+            bluffScreen = new BluffScreen();
+            panicSystem = new PanicSystem(bluffScreen);
+            sonar = new AcousticStealth();
+
+            // Setup UI
+            setupUI();
+            panicSystem.initMouseTracking();
+
+            // Listen for acoustic panic events
+            window.addEventListener('stealth:emergency-panic', (e) => {
+                if (!bluffScreen.isDisplayed()) {
+                    console.log('📡 Acoustic panic event received');
+                    panicSystem.trigger();
                 }
             });
+
+            // Listen for escape key exit with double-tap detection
+            let escapeCount = 0;
+            document.addEventListener('keydown', (e) => {
+                if (e.code === 'Escape') {
+                    escapeCount++;
+                    if (escapeCount >= 2) {
+                        panicSystem.deactivate();
+                        escapeCount = 0;
+                    }
+                    setTimeout(() => escapeCount = 0, 500);
+                }
+            });
+
+            // Also allow clicking on safety label twice to exit
+            const safetyLabel = document.querySelector('.safety-hint');
+            if (safetyLabel) {
+                let clickCount = 0;
+                safetyLabel.addEventListener('click', () => {
+                    clickCount++;
+                    if (clickCount >= 2) {
+                        panicSystem.deactivate();
+                        clickCount = 0;
+                    }
+                    setTimeout(() => clickCount = 0, 1000);
+                });
+            }
         });
 
-        abortObserver.observe(abortModal, { attributes: true });
+        // ============================================================================
+        // UI SETUP & HANDLERS
+        // ============================================================================
+
+        function setupUI() {
+            // Sonar canvas setup
+            const sonarWidget = document.querySelector('.sonar-hud');
+            const canvas = document.createElement('canvas');
+            canvas.className = 'sonar-canvas';
+            sonarWidget.insertBefore(canvas, sonarWidget.firstChild);
+            
+            sonar.sonarCanvas = canvas;
+            sonar.sonarCtx = canvas.getContext('2d');
+
+            // Sensitivity slider
+            const sensitivitySlider = document.getElementById('sensitivitySlider');
+            if (sensitivitySlider) {
+                sensitivitySlider.addEventListener('input', (e) => {
+                    sonar.setSensitivity(e.target.value);
+                });
+            }
+
+            // SFX toggle
+            const sfxToggle = document.getElementById('sfxToggle');
+            if (sfxToggle) {
+                sfxToggle.addEventListener('click', () => {
+                    sfxToggle.classList.toggle('active');
+                    sonar.setSFX(sfxToggle.classList.contains('active'));
+                });
+            }
+
+            // Start listening button
+            const startBtn = document.getElementById('startAudioBtn');
+            if (startBtn) {
+                startBtn.addEventListener('click', async () => {
+                    const result = await sonar.initialize();
+                    if (result.success) {
+                        startBtn.disabled = true;
+                        document.getElementById('stopAudioBtn').disabled = false;
+                    }
+                });
+            }
+
+            // Stop listening button
+            const stopBtn = document.getElementById('stopAudioBtn');
+            if (stopBtn) {
+                stopBtn.addEventListener('click', () => {
+                    sonar.stopListening();
+                    stopBtn.disabled = true;
+                    startBtn.disabled = false;
+                    document.getElementById('micStatus').textContent = 'Inactive';
+                });
+            }
+
+            // Bluff screen mode selector
+            const modeSelector = document.getElementById('bluffMode');
+            if (modeSelector) {
+                modeSelector.addEventListener('change', (e) => {
+                    bluffScreen.currentMode = e.target.value;
+                });
+            }
+
+            // Manual panic button
+            const panicBtn = document.getElementById('manualPanicBtn');
+            if (panicBtn) {
+                panicBtn.addEventListener('click', () => {
+                    panicSystem.trigger();
+                });
+            }
+
+            // Exit button
+            const exitBtn = document.getElementById('exitBtn');
+            if (exitBtn) {
+                exitBtn.addEventListener('click', () => {
+                    panicSystem.deactivate();
+                });
+            }
+
+            // Metrics update loop
+            setInterval(updateMetrics, 1000);
+        }
+
+        function updateMetrics() {
+            if (!sonar) return;
+            
+            const metrics = sonar.getMetrics();
+            document.getElementById('metricsSuccessful').textContent = metrics.successfulDetections;
+            document.getElementById('metricsFalse').textContent = metrics.falseTriggers;
+            document.getElementById('metricsCalib').textContent = metrics.calibrationStatus;
+        }
