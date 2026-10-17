@@ -12,213 +12,164 @@
             justify-content: center;
             align-items: center;
             padding: 20px;
+            color: #333;
         }
 
-        .main-container {
+        .container {
             background: white;
-            border-radius: 15px;
+            border-radius: 16px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            max-width: 900px;
+            max-width: 600px;
             width: 100%;
             padding: 40px;
+            animation: slideUp 0.6s ease-out;
         }
 
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-            border-bottom: 3px solid #667eea;
-            padding-bottom: 20px;
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
-        .header h1 {
-            color: #333;
+        h1 {
             font-size: 28px;
-            margin-bottom: 10px;
-        }
-
-        .header p {
-            color: #666;
-            font-size: 14px;
-        }
-
-        .phase-badge {
-            display: inline-block;
-            background: #ff6b6b;
-            color: white;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
-            margin-left: 10px;
-        }
-
-        /* Sonar HUD Widget */
-        .sonar-hud {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 200px;
-            height: 200px;
-            background: rgba(20, 30, 60, 0.95);
-            border: 2px solid #00ff00;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
-            z-index: 5000;
-            font-family: 'Courier New', monospace;
-            user-select: none;
-        }
-
-        .sonar-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            border-radius: 50%;
-        }
-
-        .sonar-content {
-            position: relative;
-            z-index: 10;
-            text-align: center;
-            color: #00ff00;
-            text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
-        }
-
-        .sonar-defcon {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        .sonar-status {
-            font-size: 12px;
-            color: #00ff00;
-            margin-bottom: 3px;
-        }
-
-        .sonar-level {
-            font-size: 11px;
-            color: #00aa00;
-        }
-
-        .sonar-hud.defcon-4 { border-color: #00ff00; box-shadow: 0 0 15px rgba(0, 255, 0, 0.4); }
-        .sonar-hud.defcon-3 { border-color: #ffff00; box-shadow: 0 0 15px rgba(255, 255, 0, 0.4); }
-        .sonar-hud.defcon-2 { border-color: #ff8800; box-shadow: 0 0 15px rgba(255, 136, 0, 0.4); }
-        .sonar-hud.defcon-1 { border-color: #ff0000; box-shadow: 0 0 20px rgba(255, 0, 0, 0.6); animation: pulse-danger 0.5s infinite; }
-
-        @keyframes pulse-danger {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-
-        /* Control Panels */
-        .control-section {
-            margin-bottom: 30px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 10px;
-            border-left: 4px solid #667eea;
-        }
-
-        .control-section h2 {
-            color: #333;
-            font-size: 18px;
-            margin-bottom: 15px;
-        }
-
-        .control-group {
-            margin-bottom: 15px;
-        }
-
-        .control-label {
-            display: block;
-            color: #555;
-            font-size: 14px;
             margin-bottom: 8px;
-            font-weight: 500;
+            color: #667eea;
+            text-align: center;
         }
 
-        .control-buttons {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
+        .subtitle {
+            text-align: center;
+            color: #999;
+            margin-bottom: 30px;
+            font-size: 12px;
         }
 
-        button {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 6px;
+        .section {
+            margin-bottom: 28px;
+            padding-bottom: 28px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .section:last-child {
+            border-bottom: none;
+        }
+
+        .section-title {
             font-size: 14px;
             font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            color: #667eea;
+            text-transform: uppercase;
+            margin-bottom: 16px;
             display: flex;
             align-items: center;
             gap: 8px;
         }
 
-        .btn-primary {
+        .preset-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .preset-btn {
+            padding: 12px 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .preset-btn:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .preset-btn.active {
+            border-color: #667eea;
             background: #667eea;
             color: white;
         }
 
-        .btn-primary:hover:not(:disabled) {
-            background: #5568d3;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        .trigger-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
         }
 
-        .btn-primary:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            opacity: 0.6;
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
         }
 
         .btn-secondary {
-            background: #e9ecef;
+            background: #f5f5f5;
             color: #333;
+            border: 1px solid #ddd;
         }
 
         .btn-secondary:hover {
-            background: #dee2e6;
+            background: #efefef;
         }
 
-        .btn-danger {
-            background: #ff6b6b;
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background: #ff5252;
-        }
-
-        .btn-success {
-            background: #51cf66;
-            color: white;
-        }
-
-        .btn-success:hover {
-            background: #40c057;
-        }
-
-        /* Sliders */
         .slider-group {
-            display: flex;
-            align-items: center;
-            gap: 15px;
+            margin-bottom: 16px;
+        }
+
+        .label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 8px;
         }
 
         input[type="range"] {
-            flex: 1;
+            width: 100%;
             height: 6px;
-            cursor: pointer;
-            -webkit-appearance: none;
-            appearance: none;
-            background: #ddd;
             border-radius: 3px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
         }
 
         input[type="range"]::-webkit-slider-thumb {
@@ -226,303 +177,383 @@
             appearance: none;
             width: 18px;
             height: 18px;
-            background: #667eea;
             border-radius: 50%;
+            background: #667eea;
             cursor: pointer;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: all 0.2s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            background: #764ba2;
+            transform: scale(1.2);
         }
 
         input[type="range"]::-moz-range-thumb {
             width: 18px;
             height: 18px;
-            background: #667eea;
             border-radius: 50%;
+            background: #667eea;
             cursor: pointer;
             border: none;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: all 0.2s;
+        }
+
+        input[type="range"]::-moz-range-thumb:hover {
+            background: #764ba2;
+            transform: scale(1.2);
         }
 
         .slider-value {
-            min-width: 50px;
-            text-align: right;
-            color: #667eea;
-            font-weight: bold;
-            font-size: 14px;
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
         }
 
-        /* Toggles */
-        .toggle-container {
+        .toggle-group {
             display: flex;
+            gap: 12px;
             align-items: center;
-            gap: 10px;
         }
 
         .toggle {
             position: relative;
             width: 50px;
             height: 28px;
-            background: #ccc;
+            background: #ddd;
             border-radius: 14px;
             cursor: pointer;
-            transition: background 0.3s ease;
+            transition: background 0.3s;
         }
 
         .toggle.active {
-            background: #51cf66;
+            background: #667eea;
         }
 
-        .toggle::after {
-            content: '';
+        .toggle-knob {
             position: absolute;
+            top: 2px;
+            left: 2px;
             width: 24px;
             height: 24px;
             background: white;
-            border-radius: 50%;
-            top: 2px;
-            left: 2px;
-            transition: left 0.3s ease;
+            border-radius: 12px;
+            transition: left 0.3s;
         }
 
-        .toggle.active::after {
+        .toggle.active .toggle-knob {
             left: 24px;
         }
 
-        /* Status Display */
-        .status-panel {
-            padding: 15px;
-            background: white;
-            border-radius: 8px;
-            border: 2px solid #e9ecef;
-            margin-top: 10px;
-        }
-
-        .status-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid #f0f0f0;
-            font-size: 13px;
-        }
-
-        .status-row:last-child {
-            border-bottom: none;
-        }
-
-        .status-label {
-            color: #666;
-            font-weight: 500;
-        }
-
-        .status-value {
-            color: #333;
-            font-weight: 600;
-        }
-
-        .status-indicator {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-right: 5px;
-        }
-
-        .indicator-active { background: #51cf66; }
-        .indicator-inactive { background: #ccc; }
-        .indicator-warning { background: #ff8800; }
-
-        /* Info Box */
         .info-box {
-            padding: 15px;
-            background: #e7f5ff;
-            border-left: 4px solid #4c6ef5;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            font-size: 13px;
-            color: #1971c2;
-            line-height: 1.6;
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 12px 16px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #555;
+            margin-top: 16px;
         }
 
-        .info-box strong {
-            color: #1864ab;
-        }
-
-        /* Screen Preview */
-        .bluff-screen-preview {
-            width: 100%;
-            height: 300px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            overflow: hidden;
-            background: #000;
-            margin-top: 10px;
-            display: none;
-            position: relative;
-        }
-
-        .bluff-screen-preview.visible {
-            display: block;
-        }
-
-        .bluff-screen-preview iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-        }
-
-        /* Modal */
-        .modal-overlay {
-            display: none;
+        /* 着信オーバーレイ */
+        .incoming-call-overlay {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0,0,0,0.7);
-            z-index: 9000;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .incoming-call-overlay.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .incoming-call-card {
+            background: white;
+            border-radius: 16px;
+            padding: 40px 30px;
+            text-align: center;
+            max-width: 400px;
+            animation: slideDown 0.5s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .incoming-call-card.teams {
+            background: linear-gradient(135deg, #0078d4 0%, #1084d7 100%);
+            color: white;
+        }
+
+        .incoming-call-card.slack {
+            background: linear-gradient(135deg, #36c5f0 0%, #2eb67d 100%);
+            color: white;
+        }
+
+        .incoming-call-card.legacy {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: white;
+        }
+
+        .incoming-call-card.alert {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+
+        .caller-name {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .caller-detail {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 32px;
+        }
+
+        .pulse-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        .call-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+        }
+
+        .call-btn {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            border: none;
+            font-size: 32px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
             align-items: center;
             justify-content: center;
         }
 
-        .modal-overlay.visible {
+        .call-btn.accept {
+            background: #31a24c;
+            color: white;
+        }
+
+        .call-btn.accept:hover {
+            background: #2a8a40;
+            transform: scale(1.1);
+        }
+
+        .call-btn.reject {
+            background: rgba(255, 255, 255, 0.3);
+            color: white;
+        }
+
+        .call-btn.reject:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        /* 通話画面 */
+        .call-screen-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            z-index: 10001;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 40px 20px;
+            color: white;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .call-screen-overlay.active {
             display: flex;
         }
 
-        .modal-content {
-            background: white;
-            border-radius: 12px;
-            padding: 30px;
-            max-width: 500px;
-            width: 90%;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        }
-
-        .modal-content h3 {
-            color: #333;
-            margin-bottom: 15px;
-        }
-
-        .modal-content p {
-            color: #666;
-            font-size: 14px;
-            margin-bottom: 20px;
-            line-height: 1.6;
-        }
-
-        .modal-buttons {
-            display: flex;
-            gap: 10px;
-            justify-content: flex-end;
-        }
-
-        /* Hacker Terminal Bluff */
-        .hacker-terminal {
-            background: #0a0e27;
-            color: #00ff00;
-            font-family: 'Courier New', monospace;
-            padding: 20px;
-            border-radius: 8px;
-            min-height: 200px;
-            overflow: auto;
-            line-height: 1.8;
-            text-shadow: 0 0 10px rgba(0,255,0,0.3);
-        }
-
-        .hacker-terminal .line {
-            margin: 5px 0;
-        }
-
-        .hacker-terminal .prompt {
-            color: #ff00ff;
-            font-weight: bold;
-        }
-
-        .hacker-terminal .command {
-            color: #00ff00;
-        }
-
-        /* Metrics Display */
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
-        }
-
-        .metric-card {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #e9ecef;
+        .call-header {
             text-align: center;
         }
 
-        .metric-value {
-            font-size: 24px;
-            font-weight: bold;
-            color: #667eea;
-            margin: 10px 0;
+        .call-timer {
+            font-size: 48px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            margin-bottom: 20px;
         }
 
-        .metric-label {
-            font-size: 12px;
-            color: #999;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+        .call-status {
+            font-size: 14px;
+            color: #ccc;
+            margin-bottom: 40px;
         }
 
-        /* Safety Label */
-        .safety-hint {
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            background: rgba(255,255,255,0.95);
-            padding: 10px 15px;
-            border-radius: 6px;
+        .prompter-area {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 24px 20px;
+            max-width: 500px;
+            min-height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 30px 0;
+        }
+
+        .prompter-text {
+            font-size: 16px;
+            line-height: 1.8;
+            color: #e0e0e0;
+            font-style: italic;
+            text-align: center;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        .call-footer {
+            display: flex;
+            gap: 20px;
+        }
+
+        .call-btn-end {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: #d32f2f;
+            color: white;
+            border: none;
+            font-size: 32px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .call-btn-end:hover {
+            background: #b71c1c;
+            transform: scale(1.1);
+        }
+
+        .call-btn-mute {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            font-size: 28px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .call-btn-mute:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* QRコード */
+        .qr-display {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 16px;
+            text-align: center;
+            display: none;
+        }
+
+        .qr-display.show {
+            display: block;
+        }
+
+        .qr-display canvas {
+            border-radius: 4px;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .qr-label {
             font-size: 12px;
             color: #666;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            z-index: 4999;
+            margin-top: 12px;
         }
 
-        /* Responsive */
-        @media (max-width: 768px) {
-            .main-container {
-                padding: 20px;
+        /* ホットキー表示 */
+        .hotkey-hint {
+            background: #f0f4ff;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #667eea;
+            margin-top: 8px;
+            text-align: center;
+        }
+
+        /* レスポンシブ */
+        @media (max-width: 600px) {
+            .container {
+                padding: 24px;
             }
 
-            .header h1 {
+            h1 {
                 font-size: 22px;
             }
 
-            .control-buttons {
-                flex-direction: column;
+            .preset-grid {
+                grid-template-columns: 1fr;
             }
 
-            button {
-                width: 100%;
-                justify-content: center;
+            .trigger-buttons {
+                grid-template-columns: 1fr;
             }
 
-            .sonar-hud {
-                width: 150px;
-                height: 150px;
-                bottom: 10px;
-                right: 10px;
+            .incoming-call-card {
+                max-width: 90vw;
+                padding: 30px 20px;
             }
 
-            .metrics-grid {
-                grid-template-columns: repeat(2, 1fr);
+            .caller-name {
+                font-size: 24px;
             }
-        }
 
-        /* Accessibility */
-        button:focus,
-        input[type="range"]:focus {
-            outline: 2px solid #667eea;
-            outline-offset: 2px;
-        }
+            .pulse-icon {
+                font-size: 48px;
+            }
 
-        .toggle:focus {
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+            .call-timer {
+                font-size: 36px;
+            }
         }
